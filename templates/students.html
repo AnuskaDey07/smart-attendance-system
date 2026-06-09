@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Students — AttendAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Students <span class="count-badge">{{ students|length }}</span></h1>
+  <a href="{{ url_for('enroll') }}" class="btn btn-primary">+ Enroll New</a>
+</div>
+
+{% if students %}
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Roll Number</th>
+        <th>Face Data</th>
+        <th>Enrolled On</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in students %}
+      <tr>
+        <td class="muted">{{ loop.index }}</td>
+        <td><strong>{{ s.name }}</strong></td>
+        <td><span class="badge">{{ s.roll_number }}</span></td>
+        <td>
+          {% if s.photo_path %}
+            <span class="status-dot status-green"></span> Enrolled
+          {% else %}
+            <span class="status-dot status-red"></span> Missing
+          {% endif %}
+        </td>
+        <td class="muted">{{ s.created_at[:10] if s.created_at else '—' }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('delete_student', student_id=s.id) }}"
+                onsubmit="return confirm('Remove {{ s.name }}? This will also delete their attendance records.')">
+            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="color:#a0aec0;margin-bottom:12px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <p>No students enrolled yet.</p>
+    <a href="{{ url_for('enroll') }}" class="btn btn-primary">Enroll first student</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

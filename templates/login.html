@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Login — AttendAI{% endblock %}
+
+{% block auth_content %}
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M6 20v-2a6 6 0 0 1 12 0v2"/>
+          <circle cx="19" cy="6" r="2" fill="#4f46e5" stroke="#4f46e5"/>
+        </svg>
+      </div>
+      <h1 class="login-title">AttendAI</h1>
+      <p class="login-subtitle">Smart Face Attendance System</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}" style="margin-bottom:16px;">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}" class="login-form">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" name="username" class="form-input"
+               placeholder="Enter your username" required autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-input"
+               placeholder="Enter your password" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+    </form>
+
+    <p class="login-hint">Default: <code>admin</code> / <code>admin123</code></p>
+  </div>
+</div>
+{% endblock %}

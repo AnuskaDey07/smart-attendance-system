@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Take Attendance — AttendAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Take Attendance</h1>
+  <span class="page-date" id="live-clock"></span>
+</div>
+
+<div class="attendance-layout">
+  <!-- Webcam scanner -->
+  <div class="card scan-card">
+    <div class="camera-status-bar">
+      <span id="camera-status-text" class="status-label">Camera off</span>
+      <div class="scan-indicator" id="scan-indicator"></div>
+    </div>
+
+    <div class="camera-box">
+      <video id="scan-video" autoplay playsinline></video>
+      <canvas id="scan-canvas" style="display:none;"></canvas>
+      <div class="camera-placeholder" id="cam-placeholder">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="color:#cbd5e0"><path d="M23 7 16 12 23 17V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        <p>Click "Start Scanner" to begin</p>
+      </div>
+    </div>
+
+    <div class="camera-controls">
+      <button id="start-scan-btn" class="btn btn-primary" onclick="startScanner()">Start Scanner</button>
+      <button id="stop-scan-btn" class="btn btn-secondary" onclick="stopScanner()" style="display:none;">Stop Scanner</button>
+    </div>
+  </div>
+
+  <!-- Result panel -->
+  <div class="card result-panel">
+    <div class="card-header">
+      <h2 class="card-title">Recognition result</h2>
+    </div>
+
+    <div id="result-area" class="result-idle">
+      <div class="result-icon-idle">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+      </div>
+      <p class="result-idle-text">Waiting for scanner…</p>
+    </div>
+
+    <!-- Today's log -->
+    <div class="card-header" style="margin-top:24px;">
+      <h2 class="card-title">Marked present today</h2>
+    </div>
+    <div id="today-log" class="today-log">
+      <p class="muted" style="font-size:13px;padding:12px 0;">No one marked yet.</p>
+    </div>
+
+    <div style="margin-top:16px;">
+      <a href="{{ url_for('reports') }}" class="btn btn-secondary btn-full">View full report</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Live clock
+function updateClock() {
+  const now = new Date();
+  document.getElementById('live-clock').textContent =
+    now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+let scanStream = null;
+let scanInterval = null;
+let isScanning = false;
+let scanCooldown = false;
+const markedToday = new Set();
+
+async function startScanner() {
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480, facingMode:'user' } });
+    const video = document.getElementById('scan-video');
+    video.srcObject = scanStream;
+    video.style.display = 'block';
+    document.getElementById('cam-placeholder').style.display = 'none';
+    document.getElementById('start-scan-btn').style.display = 'none';
+    document.getElementById('stop-scan-btn').style.display = 'inline-block';
+    document.getElementById('camera-status-text').textContent = 'Scanning…';
+    document.getElementById('scan-indicator').classList.add('scanning');
+    isScanning = true;
+    scanInterval = setInterval(sendFrame, 2000);   // Scan every 2 seconds
+  } catch(e) {
+    alert('Camera error: ' + e.message + '\nPlease allow camera access in your browser.');
+  }
+}
+
+function stopScanner() {
+  isScanning = false;
+  if (scanInterval) clearInterval(scanInterval);
+  if (scanStream) scanStream.getTracks().forEach(t => t.stop());
+  document.getElementById('scan-video').srcObject = null;
+  document.getElementById('scan-video').style.display = 'none';
+  document.getElementById('cam-placeholder').style.display = 'flex';
+  document.getElementById('start-scan-btn').style.display = 'inline-block';
+  document.getElementById('stop-scan-btn').style.display = 'none';
+  document.getElementById('camera-status-text').textContent = 'Camera off';
+  document.getElementById('scan-indicator').classList.remove('scanning');
+}
+
+function sendFrame() {
+  if (!isScanning || scanCooldown) return;
+  const video = document.getElementById('scan-video');
+  if (video.readyState < 2) return;
+
+  const canvas = document.getElementById('scan-canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+  fetch('/scan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: imageData })
+  })
+  .then(r => r.json())
+  .then(data => showResult(data))
+  .catch(err => console.error('Scan error:', err));
+}
+
+function showResult(data) {
+  const area = document.getElementById('result-area');
+
+  if (data.matched) {
+    const alreadyMarked = data.already_marked || markedToday.has(data.student_id);
+
+    if (!alreadyMarked) {
+      markedToday.add(data.student_id);
+      addToLog(data.student_name);
+      playBeep();
+    }
+
+    area.className = alreadyMarked ? 'result-already' : 'result-success';
+    area.innerHTML = `
+      <div class="result-icon-success">${alreadyMarked ? '🔁' : '✓'}</div>
+      <div class="result-name">${data.student_name}</div>
+      <div class="result-meta">Confidence: ${data.confidence}%</div>
+      <div class="result-status">${alreadyMarked ? 'Already marked today' : 'Marked Present'}</div>
+    `;
+
+    // Cooldown to avoid duplicate rapid scans
+    scanCooldown = true;
+    setTimeout(() => {
+      scanCooldown = false;
+      area.className = 'result-idle';
+      area.innerHTML = `
+        <div class="result-icon-idle"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg></div>
+        <p class="result-idle-text">Ready for next scan…</p>
+      `;
+    }, 4000);
+
+  } else if (data.message !== 'No face detected in frame.') {
+    area.className = 'result-fail';
+    area.innerHTML = `
+      <div class="result-icon-fail">?</div>
+      <div class="result-name">Unknown Face</div>
+      <div class="result-status">${data.message}</div>
+    `;
+    setTimeout(() => {
+      area.className = 'result-idle';
+      area.innerHTML = `
+        <div class="result-icon-idle"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg></div>
+        <p class="result-idle-text">Waiting for scanner…</p>
+      `;
+    }, 2500);
+  }
+}
+
+function addToLog(name) {
+  const log = document.getElementById('today-log');
+  const emptyMsg = log.querySelector('p');
+  if (emptyMsg) emptyMsg.remove();
+
+  const now = new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `<span class="log-name">${name}</span><span class="log-time">${now}</span>`;
+  log.prepend(item);
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch(e) {}
+}
+</script>
+{% endblock %}

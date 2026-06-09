@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Reports — AttendAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Attendance Report</h1>
+  <a href="{{ url_for('download_report', start=filter_date, end=filter_date) }}" class="btn btn-secondary">
+    ↓ Download CSV
+  </a>
+</div>
+
+<!-- Date filter -->
+<div class="card" style="margin-bottom:16px;">
+  <form method="GET" action="{{ url_for('reports') }}" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+    <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+      <label class="form-label">Filter by date</label>
+      <input type="date" name="date" value="{{ filter_date }}" class="form-input">
+    </div>
+    <button type="submit" class="btn btn-primary" style="height:40px;">Apply</button>
+  </form>
+</div>
+
+<!-- Results table -->
+<div class="card">
+  {% if records %}
+  <div class="table-meta">
+    <span class="muted">{{ records|length }} record(s) for {{ filter_date }}</span>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Roll Number</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td class="muted">{{ loop.index }}</td>
+        <td><strong>{{ r.name }}</strong></td>
+        <td><span class="badge">{{ r.roll_number }}</span></td>
+        <td>{{ r.date }}</td>
+        <td>{{ r.time }}</td>
+        <td><span class="status-pill status-present">{{ r.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="color:#a0aec0;margin-bottom:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <p>No attendance records found for {{ filter_date }}.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

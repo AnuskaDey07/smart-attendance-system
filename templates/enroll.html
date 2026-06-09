@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Enroll Student — AttendAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Enroll New Student</h1>
+</div>
+
+<div class="enroll-layout">
+  <!-- Camera capture panel -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Capture photo</h2>
+      <p class="card-sub">Make sure only one face is visible, with good lighting.</p>
+    </div>
+    <div class="camera-box">
+      <video id="enroll-video" autoplay playsinline></video>
+      <canvas id="enroll-canvas" style="display:none;"></canvas>
+      <div id="enroll-preview" class="preview-box" style="display:none;">
+        <img id="preview-img" src="" alt="Captured photo">
+        <div class="preview-badge">✓ Photo captured</div>
+      </div>
+    </div>
+    <div class="camera-controls">
+      <button type="button" id="start-camera-btn" class="btn btn-secondary" onclick="startEnrollCamera()">
+        Start Camera
+      </button>
+      <button type="button" id="capture-btn" class="btn btn-primary" onclick="capturePhoto()" style="display:none;">
+        Capture Photo
+      </button>
+      <button type="button" id="retake-btn" class="btn btn-secondary" onclick="retakePhoto()" style="display:none;">
+        Retake
+      </button>
+    </div>
+  </div>
+
+  <!-- Form panel -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Student details</h2>
+    </div>
+    <form method="POST" action="{{ url_for('enroll') }}" enctype="multipart/form-data" id="enroll-form">
+      <div class="form-group">
+        <label class="form-label">Full Name <span class="required">*</span></label>
+        <input type="text" name="name" class="form-input"
+               placeholder="e.g. Rahul Kumar" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Roll Number <span class="required">*</span></label>
+        <input type="text" name="roll_number" class="form-input"
+               placeholder="e.g. CS2024001" required>
+      </div>
+
+      <!-- Hidden file input — filled by JS after capture -->
+      <input type="file" name="photo" id="photo-input" accept="image/*" style="display:none;">
+
+      <!-- Manual upload fallback -->
+      <div class="form-group">
+        <label class="form-label">Or upload a photo</label>
+        <input type="file" name="photo" id="photo-upload" accept="image/*" class="form-input"
+               onchange="showUploadPreview(this)">
+        <p class="form-hint">Use the camera above for best results, or upload a clear front-facing photo.</p>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" id="enroll-submit-btn">
+        Enroll Student
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let enrollStream = null;
+let capturedFile = null;
+
+async function startEnrollCamera() {
+  try {
+    enrollStream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 } });
+    document.getElementById('enroll-video').srcObject = enrollStream;
+    document.getElementById('enroll-video').style.display = 'block';
+    document.getElementById('start-camera-btn').style.display = 'none';
+    document.getElementById('capture-btn').style.display = 'inline-block';
+  } catch(e) {
+    alert('Could not access camera: ' + e.message + '\nPlease allow camera permission or use the file upload.');
+  }
+}
+
+function capturePhoto() {
+  const video = document.getElementById('enroll-video');
+  const canvas = document.getElementById('enroll-canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  // Show preview
+  const imgSrc = canvas.toDataURL('image/jpeg', 0.92);
+  document.getElementById('preview-img').src = imgSrc;
+  document.getElementById('enroll-preview').style.display = 'block';
+  video.style.display = 'none';
+  document.getElementById('capture-btn').style.display = 'none';
+  document.getElementById('retake-btn').style.display = 'inline-block';
+
+  // Convert base64 to File object and attach to form
+  canvas.toBlob(function(blob) {
+    capturedFile = new File([blob], 'enroll_photo.jpg', { type: 'image/jpeg' });
+    const dt = new DataTransfer();
+    dt.items.add(capturedFile);
+    document.getElementById('photo-upload').files = dt.files;
+  }, 'image/jpeg', 0.92);
+
+  // Stop stream
+  if (enrollStream) {
+    enrollStream.getTracks().forEach(t => t.stop());
+    enrollStream = null;
+  }
+}
+
+function retakePhoto() {
+  document.getElementById('enroll-preview').style.display = 'none';
+  document.getElementById('retake-btn').style.display = 'none';
+  document.getElementById('capture-btn').style.display = 'none';
+  document.getElementById('start-camera-btn').style.display = 'inline-block';
+  document.getElementById('enroll-video').style.display = 'none';
+  capturedFile = null;
+}
+
+function showUploadPreview(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('preview-img').src = e.target.result;
+      document.getElementById('enroll-preview').style.display = 'block';
+      document.getElementById('enroll-video').style.display = 'none';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}
