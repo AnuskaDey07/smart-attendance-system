@@ -28,6 +28,13 @@ The system offers a user-friendly web interface for student enrollment, attendan
 
 ## 🛠️ Technologies Used
 
+### Frontend
+
+* HTML5
+* CSS3
+* JavaScript
+
+  
 ### Backend
 
 * Python
@@ -40,11 +47,6 @@ The system offers a user-friendly web interface for student enrollment, attendan
 * Face Recognition Library
 * NumPy
 
-### Frontend
-
-* HTML5
-* CSS3
-* JavaScript
 
 ### Additional Libraries
 
@@ -77,55 +79,6 @@ smart-attendance-system/
 └── .gitignore
 ```
 
----
-
-## ⚙️ Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/AnuskaDey07/smart-attendance-system.git
-```
-
-### 2. Navigate to Project Directory
-
-```bash
-cd smart-attendance-system
-```
-
-### 3. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Run the Application
-
-```bash
-python app.py
-```
-
----
-
-## 🌐 Access the Application
-
-Open your browser and visit:
-
-```text
-http://127.0.0.1:5000
-```
-
----
-
-## 🔑 Default Login Credentials
-
-```text
-Username: admin
-Password: admin123
-```
-
----
-
 ## 📖 How to Use
 
 ### Student Enrollment
@@ -145,25 +98,6 @@ Password: admin123
 4. The system automatically identifies the student.
 5. Attendance is marked and stored in the database.
 
----
-
-## 📸 Screenshots
-
-### Login Page
-
-*Add screenshot here*
-
-### Student Enrollment
-
-*Add screenshot here*
-
-### Attendance Scanner
-
-*Add screenshot here*
-
-### Dashboard
-
-*Add screenshot here*
 
 ---
 
@@ -197,12 +131,3 @@ GitHub: https://github.com/AnuskaDey07
 
 ---
 
-## 📄 License
-
-This project is licensed under the MIT License.
-
----
-
-## ⭐ Support
-
-If you found this project useful, consider giving it a ⭐ on GitHub.
